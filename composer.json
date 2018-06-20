@@ -1,0 +1,16 @@
+{
+    "name": "xi/initphp",
+    "description": "initphp-view",
+    "authors": [
+        {
+            "name": "姬熙",
+            "email": "jixi1991@163.com"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "InitPHP\\View\\": "src/"
+        }
+    }
+}
