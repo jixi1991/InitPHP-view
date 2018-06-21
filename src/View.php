@@ -2,6 +2,9 @@
 
 namespace InitPHP\View;
 
+use InitPHP\View\Driver\Easy;
+use InitPHP\View\Driver\Simple;
+
 class templateInit {
 
     private $template_path      = 'template'; //模板目录
@@ -53,7 +56,7 @@ class templateInit {
     /**
      * 模板编译-模板类入口函数
      * 1. 获取模板，如果模板未编译，则编译
-     * @param  string $filename 文件名称，例如：test，不带文件.htm类型
+     * @param string $file_name 文件名称，例如：test，不带文件.htm类型
      * @return string
      */
     protected function template_run($file_name) {
@@ -72,8 +75,8 @@ class templateInit {
 
     /**
      * 模板编译-读取静态模板
-     * @param  string $filename 文件名称，例如：test，不带文件.htm类型
-     * @return
+     * @param string $template_file_name 文件名称，例如：test，不带文件.htm类型
+     * @return string
      */
     private function read_template($template_file_name) {
         if ( ! file_exists($template_file_name)) {
@@ -84,9 +87,8 @@ class templateInit {
 
     /**
      * 模板编译-编译模板
-     * @param  string $filename 文件名称，例如：test，不带文件.htm类型
-     * @param  string $str 写入编译文件的数据
-     * @return
+     * @param string $compile_file_name 文件名称，例如：test，不带文件.htm类型
+     * @param string $str 写入编译文件的数据
      */
     private function compile_template($compile_file_name, $str) {
         if (($path = dirname($compile_file_name)) !== $this->template_c_path) { //自动创建文件夹
@@ -100,8 +102,9 @@ class templateInit {
 
     /**
      * 模板编译-通过传入的filename，获取要编译的静态页面和生成编译文件的文件名
-     * @param  string $filename 文件名称，例如：test，不带文件.htm类型
-     * @return
+     * @param  string $file_name 文件名称，例如：test，不带文件.htm类型
+     *
+     * @return array
      */
     private function get_file_name($file_name) {
         return array(
@@ -112,8 +115,8 @@ class templateInit {
 
     /**
      * 模板编译-检测模板目录和编译目录是否可写
-     * @return
-     */
+     * @return bool
+     * */
     private function check_path() {
         if ( ! is_dir($this->template_path) || !is_readable($this->template_path)) {
             // InitPHP::initError('template path is unread!');
@@ -129,8 +132,9 @@ class templateInit {
     /**
      * 模板编译-编译文件-头部版本信息
      * @param  string $str 模板文件数据
+     * @param  string $template_file_name
      * @return string
-     */
+     * */
     private function compile_version($str, $template_file_name) {
         $version_str = '<?php  if (!defined("IS_INITPHP")) exit("Access Denied!");  /* INITPHP Version 1.0 ,Create on ' .date('Y-m-d H:i:s');
         $version_str .= ', compiled from '. $template_file_name . ' */ ?>' . "\r\n";
@@ -152,7 +156,7 @@ class templateInit {
      * 1. 在HTML模板中直接使用<!--{layout:user/version}-->就可以调用模板
      * @param  string $str 模板文件数据
      * @return string
-     */
+     * */
     private function layout($str) {
         preg_match_all("/(".$this->template_tag_left."layout:)(.*)(".$this->template_tag_right.")/", $str, $matches);
         $matches[2] = array_unique($matches[2]); //重复值移除
@@ -168,26 +172,25 @@ class templateInit {
      * 模板编译-layout路径
      * @param  string $template_name 模板名称
      * @return string
-     */
+     * */
     private function layout_path($template_name) {
         return "<?php include('".$this->template_c_path.'/'.$template_name.'.'.$this->template_c_type."'); ?>";
     }
 
     /**
      * 模板编译-获取不同
-     * @param  string $template_name 模板名称
+     * @param  string $driver
      * @return string
-     */
+     * */
     private function get_driver($driver) {
-        $diver_path = 'driver/' . $driver . '.init.php';
         if (self::$driver === NULL) {
-            require_once($diver_path);
-            $class = $driver . 'Init';
-            if ( ! class_exists($class)) {
-                InitPHP::initError('class' . $class . ' is not exist!');
+            if ($driver === 'easy') {
+                self::$driver = new Easy();
+            } elseif ($driver === 'simple') {
+                self::$driver = new Simple();
+            } else {
+                exit('Unsupported template engine drivers.');
             }
-            $init_class = new $class;
-            self::$driver = $init_class;
         }
         return self::$driver;
     }
@@ -223,7 +226,7 @@ class View extends templateInit {
      * Controller中使用方法：$this->view->assign($key, $value);
      * @param string  $key   KEY值-模板中的变量名称
      * @param array $value value值
-     */
+     * */
     public function assign($key, $value) {
         $this->view[$key] = $value;
     }
@@ -235,7 +238,7 @@ class View extends templateInit {
      * Controller中使用方法：$this->view->set_tpl($template_name, $type = '');
      * @param  string  $template_name 模板名称
      * @param  string  $type 类型，F-头模板，L-脚步模板
-     */
+     * */
     public function set_tpl($template_name, $type = '') {
         if ($type == 'F') {
             $this->template_arr['F'] = $template_name;
@@ -252,7 +255,7 @@ class View extends templateInit {
      * 2. 移除模板需要在display() 模板显示前使用
      * Controller中使用方法：$this->view->remove_tpl($remove_tpl);
      * @param string $remove_tpl 需要移除模板名称
-     */
+     * */
     public function remove_tpl($remove_tpl) {
         $this->remove_tpl_arr[] = $remove_tpl;
     }
@@ -261,7 +264,7 @@ class View extends templateInit {
      * 模板-获取模板数组
      * Controller中使用方法：$this->view->get_tpl();
      * @return array
-     */
+     * */
     public function get_tpl() {
         return $this->template_arr;
     }
@@ -301,13 +304,14 @@ class View extends templateInit {
      * 模板-处理视图存放器数组，分离头模板和脚模板顺序
      * @param  array  $arr 视图存放器数组
      * @return array
-     */
+     * */
     private function parse_template_arr(array $arr) {
         $temp = $arr;
         unset($temp['F'], $temp['L']);
-        if (isset($this->template_arr['F'])) { //头模板
+        if (isset($this->template_arr['F'])) { // 头模板
             array_unshift($temp, $this->template_arr['F']);
         }
+
         if (isset($this->template_arr['L'])) {
             array_push($temp, $this->template_arr['L']);
         }
@@ -316,9 +320,9 @@ class View extends templateInit {
 
     /**
      * 模板-模板变量输出过滤
-     * @param  array  $arr 视图存放器数组
+     * @param  array $value 视图存放器数组
      * @return array
-     */
+     * */
     private function out_put($value) {
         $value = (array) $value;
         foreach ($value as $key => $val) {
